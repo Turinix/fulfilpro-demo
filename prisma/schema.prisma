@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SKU {
+  id          String   @id @default(uuid())
+  name        String
+  skuCode     String   @unique
+  category    String
+  size        String
+  color       String
+  imageUrl    String?
+  price       Decimal
+  cost        Decimal
+  createdAt   DateTime @default(now())
+
+  inventory   Inventory?
+  orderItems  OrderItem[]
+  forecasts   DemandForecast[]
+}
+
+model Inventory {
+  id           String @id @default(uuid())
+  skuId        String @unique
+  sku          SKU    @relation(fields: [skuId], references: [id])
+  inStock      Int
+  reserved     Int    @default(0)
+  reorderPoint Int
+  aisle        String
+  shelf        Int
+  bin          Int
+
+  @@index([inStock])
+}
+
+model Order {
+  id              String   @id @default(uuid())
+  orderNumber     String   @unique
+  channel         String
+  customerName    String
+  customerAddress String
+  customerPhone   String
+  status          String   @default("new")
+  routingDecision String?
+  totalAmount     Decimal
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  items         OrderItem[]
+  pickList      PickList?
+  shipment      Shipment?
+  productionJob ProductionJob?
+  returns       Return[]
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  skuId     String
+  sku       SKU     @relation(fields: [skuId], references: [id])
+  quantity  Int
+  unitPrice Decimal
+
+  pickListItems PickListItem[]
+}
+
+model PickList {
+  id        String   @id @default(uuid())
+  orderId   String   @unique
+  order     Order    @relation(fields: [orderId], references: [id])
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+
+  items PickListItem[]
+}
+
+model PickListItem {
+  id          String    @id @default(uuid())
+  pickListId  String
+  pickList    PickList  @relation(fields: [pickListId], references: [id])
+  orderItemId String
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id])
+  location    String
+  picked      Boolean   @default(false)
+  pickedAt    DateTime?
+}
+
+model ProductionJob {
+  id          String    @id @default(uuid())
+  orderId     String    @unique
+  order       Order     @relation(fields: [orderId], references: [id])
+  status      String    @default("queued")
+  priority    String    @default("normal")
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model Shipment {
+  id          String   @id @default(uuid())
+  orderId     String   @unique
+  order       Order    @relation(fields: [orderId], references: [id])
+  courier     String
+  awbNumber   String
+  packageSize String
+  weight      Decimal?
+  status      String   @default("packed")
+  labelUrl    String?
+  createdAt   DateTime @default(now())
+}
+
+model Return {
+  id            String    @id @default(uuid())
+  orderId       String
+  order         Order     @relation(fields: [orderId], references: [id])
+  rmaNumber     String    @unique
+  customerName  String
+  reason        String
+  itemCondition String?
+  status        String    @default("requested")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model DemandForecast {
+  id             String   @id @default(uuid())
+  skuId          String
+  sku            SKU      @relation(fields: [skuId], references: [id])
+  date           DateTime
+  predictedUnits Int
+  actualUnits    Int?
+  confidence     String
+
+  @@unique([skuId, date])
+}

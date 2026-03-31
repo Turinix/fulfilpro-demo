@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: fulfilpro
+      POSTGRES_USER: fulfilpro
+      POSTGRES_PASSWORD: fulfilpro
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fulfilpro"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://fulfilpro:fulfilpro@db:5432/fulfilpro
+
+volumes:
+  pgdata:
